@@ -19,6 +19,7 @@ class StorageService {
   Future<SavedPhoto> saveToDownloads(File file) async {
     try {
       await _prepare();
+      final expectedLength = await file.length();
       final info = await _mediaStore.saveFile(
         tempFilePath: file.path,
         dirType: DirType.download,
@@ -31,11 +32,34 @@ class StorageService {
         relativePath: AppStrings.folderName,
         dirName: DirName.download,
       );
-      return SavedPhoto(name: info.name, path: '$folder/${info.name}');
+      final path = '$folder/${info.name}';
+      if (!await _matchesLength(path, expectedLength)) {
+        await _discard(info.name);
+        throw const AppException(AppStrings.saveFailed);
+      }
+      return SavedPhoto(name: info.name, path: path);
     } on AppException {
       rethrow;
     } catch (_) {
       throw const AppException(AppStrings.saveFailed);
+    }
+  }
+
+  Future<bool> _matchesLength(String path, int expected) async {
+    final saved = File(path);
+    return await saved.exists() && await saved.length() == expected;
+  }
+
+  Future<void> _discard(String name) async {
+    try {
+      await _mediaStore.deleteFile(
+        fileName: name,
+        dirType: DirType.download,
+        dirName: DirName.download,
+        relativePath: AppStrings.folderName,
+      );
+    } catch (_) {
+      return;
     }
   }
 

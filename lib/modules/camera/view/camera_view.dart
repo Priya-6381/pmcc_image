@@ -66,7 +66,21 @@ class CameraView extends GetView<CameraScreenController> {
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: AppColors.cameraBackground),
-        Center(child: CameraPreview(camera)),
+        Center(
+          child: CameraPreview(
+            camera,
+            child: LayoutBuilder(
+              builder: (context, constraints) => GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapUp: (details) => controller.focusAt(
+                  details.localPosition,
+                  constraints.biggest,
+                ),
+                child: Obx(() => _buildFocusRing(controller.focusRing.value)),
+              ),
+            ),
+          ),
+        ),
         Align(
           alignment: Alignment.bottomCenter,
           child: Padding(
@@ -79,6 +93,30 @@ class CameraView extends GetView<CameraScreenController> {
           ),
         ),
         if (busyMessage != null) _buildBusyOverlay(busyMessage),
+      ],
+    );
+  }
+
+  Widget _buildFocusRing(Offset? position) {
+    if (position == null) return const SizedBox.expand();
+
+    return Stack(
+      children: [
+        Positioned(
+          left: position.dx - AppSizes.focusRingSize / 2,
+          top: position.dy - AppSizes.focusRingSize / 2,
+          child: Container(
+            width: AppSizes.focusRingSize,
+            height: AppSizes.focusRingSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.captureButtonRing,
+                width: AppSizes.focusRingWidth,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -23,6 +23,10 @@ class AppSizes {
   static const buttonWidth = 180.0;
   static const buttonHeight = 48.0;
 
+  // Focus ring
+  static const focusRingSize = 72.0;
+  static const focusRingWidth = 2.0;
+
   // Capture button
   static const captureButtonSize = 72.0;
   static const captureButtonRingWidth = 4.0;

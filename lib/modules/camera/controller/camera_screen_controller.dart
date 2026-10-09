@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/app_exception.dart';
 import '../../../core/utils/permission_util.dart';
@@ -43,6 +45,8 @@ class CameraScreenController extends GetxController {
   final errorMessage = ''.obs;
   final busyMessage = RxnString();
   final result = Rxn<CaptureResult>();
+  final focusRing = Rxn<Offset>();
+  Timer? _focusRingTimer;
 
   CameraController? get previewController => _cameraService.controller;
   bool get isBusy => busyMessage.value != null;
@@ -55,6 +59,7 @@ class CameraScreenController extends GetxController {
 
   @override
   void onClose() {
+    _focusRingTimer?.cancel();
     _cameraService.dispose();
     super.onClose();
   }
@@ -102,10 +107,15 @@ class CameraScreenController extends GetxController {
       final capturedAt = DateTime.now();
 
       busyMessage.value = AppStrings.capturing;
-      rawFile = await _cameraService.captureToTemp(capturedAt);
+      final raw = await _cameraService.captureToTemp(capturedAt);
+      rawFile = raw.file;
 
       busyMessage.value = AppStrings.processing;
-      processedFile = await _imageProcessor.process(rawFile, capturedAt);
+      processedFile = await _imageProcessor.process(
+        raw.file,
+        capturedAt,
+        raw.orientation,
+      );
       final bytes = await processedFile.readAsBytes();
 
       busyMessage.value = AppStrings.saving;
@@ -119,6 +129,20 @@ class CameraScreenController extends GetxController {
       await _deleteQuietly(processedFile);
       busyMessage.value = null;
     }
+  }
+
+  Future<void> focusAt(Offset position, Size previewSize) async {
+    if (isBusy || status.value != CameraStatus.ready) return;
+
+    focusRing.value = position;
+    _focusRingTimer?.cancel();
+    _focusRingTimer = Timer(
+      const Duration(milliseconds: AppConstants.focusRingMs),
+      () => focusRing.value = null,
+    );
+    await _cameraService.focusAt(
+      Offset(position.dx / previewSize.width, position.dy / previewSize.height),
+    );
   }
 
   void onCancel() => Get.back();
